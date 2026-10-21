@@ -1,0 +1,43 @@
+name: Exportar logos oficiais em PNG
+on:
+  push:
+    branches:
+      - preview/mousepad-grupo-uoma
+    paths:
+      - .github/workflows/exportar-logos.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  exportar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Preparar Pillow
+        run: python3 -m pip install --quiet --break-system-packages Pillow
+      - name: Extrair imagens oficiais da arte vetorial
+        run: |
+          mkdir -p previews/logos-oficiais
+          python3 - <<'PY'
+          import re, base64, io
+          from PIL import Image
+          svg=open('previews/mousepad-grupo-uoma-80x30.svg',encoding='utf-8').read()
+          matches=re.findall(r'<image\s+href="data:image/webp;base64,([^"]+)"',svg)
+          names=['01-Grupo-Uoma.png','02-Padoquinha.png','03-Loja-do-Sorveteiro-e-Confeiteiro.png','04-Merenda-Certa.png']
+          if len(matches)!=4:
+              raise RuntimeError(f'Esperadas 4 imagens, obtidas {len(matches)}')
+          for name,b64 in zip(names,matches):
+              image=Image.open(io.BytesIO(base64.b64decode(b64))).convert('RGBA')
+              path='previews/logos-oficiais/'+name
+              image.save(path,optimize=True)
+              print(name, image.size)
+          PY
+      - name: Publicar arquivos PNG
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add previews/logos-oficiais/*.png
+          git diff --cached --quiet && exit 0
+          git commit -m "Exporta as quatro logos oficiais como PNG individuais"
+          git push
