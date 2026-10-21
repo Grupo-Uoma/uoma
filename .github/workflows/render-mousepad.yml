@@ -1,0 +1,43 @@
+name: Renderizar mousepad Uoma em PNG e JPEG
+
+on:
+  push:
+    branches:
+      - preview/mousepad-grupo-uoma
+    paths:
+      - previews/mousepad-grupo-uoma-80x30.svg
+      - .github/workflows/render-mousepad.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  renderizar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Obter arquivos
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Instalar bibliotecas de imagem
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y librsvg2-bin python3-pil
+      - name: Renderizar PNG no tamanho 8000 x 3000
+        run: |
+          rsvg-convert --width=8000 --height=3000 --format=png previews/mousepad-grupo-uoma-80x30.svg > previews/mousepad-grupo-uoma-80x30.png
+          python3 - <<'PY'
+          from PIL import Image
+          im = Image.open('previews/mousepad-grupo-uoma-80x30.png').convert('RGB')
+          im.save('previews/mousepad-grupo-uoma-80x30.jpg', format='JPEG', quality=94, subsampling=0, dpi=(254,254))
+          print('PNG e JPEG salvos.')
+          PY
+      - name: Publicar imagens finais na branch de prévia
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add previews/mousepad-grupo-uoma-80x30.png previews/mousepad-grupo-uoma-80x30.jpg
+          git diff --cached --quiet && exit 0
+          git commit -m "Renderiza imagem PNG e JPEG do mousepad oficial"
+          git push
